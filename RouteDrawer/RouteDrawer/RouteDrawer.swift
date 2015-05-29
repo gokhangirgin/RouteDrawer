@@ -53,7 +53,6 @@ class RouteDrawer {
         SLOWEST = 5
     }
     
-    init(){}
     
     private var enableLogging           : Bool                      = false
     private var animateMarkerPosition   : CLLocationCoordinate2D?   = nil
@@ -64,7 +63,7 @@ class RouteDrawer {
     private var animateLine             : GMSPolyline?              = nil
     private var googleMap               : GMSMapView?               = nil
     private var step                    : Int                       = -1
-    private var animationSpeed          : Double                    = SPEED.NORMAL.rawValue
+    private var animationSpeed          : SPEED                     = SPEED.NORMAL
     private var mode                    : String                    = STATUS.OK.rawValue
     private var mapZoom                 : Int                       = -1
     private var animateDistance         : Double                    = -1
@@ -79,6 +78,10 @@ class RouteDrawer {
     private var isAnimated              : Bool                      = false
     private var directionDelegate       : DirectionDelegate?        = nil
     private var animationDelegate       : AnimationDelegate?        = nil
+    
+    init(){
+        setCameraUpdateSpeed(self.animationSpeed)
+    }
     
     func request(beginLocation : CLLocationCoordinate2D, endLocation : CLLocationCoordinate2D, mode : MODE) -> String {
         return ""
