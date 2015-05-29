@@ -1,10 +1,3 @@
-//
-//  AppDelegate.swift
-//  RouteDrawer
-//
-//  Created by Gökhan Girgin on 29.05.2015.
-//  Copyright (c) 2015 GG. All rights reserved.
-//
 
 import UIKit
 
