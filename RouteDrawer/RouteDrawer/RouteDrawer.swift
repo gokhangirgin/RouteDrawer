@@ -7,8 +7,9 @@
 
 import Foundation
 import GoogleMaps
+import SwiftyJSON
 protocol DirectionDelegate {
-    func Response(status : RouteDrawer.STATUS, response : AnyObject?, routeDrawer : RouteDrawer) -> Void
+    func Response(status : RouteDrawer.STATUS, response : JSON, routeDrawer : RouteDrawer) -> Void
 }
 protocol AnimationDelegate {
     func start() -> Void
@@ -63,7 +64,7 @@ class RouteDrawer {
     private var animateLine             : GMSPolyline?              = nil
     private var googleMap               : GMSMapView?               = nil
     private var step                    : Int                       = -1
-    private var animationSpeed          : SPEED                     = SPEED.NORMAL
+    private var animationSpeed          : Int                       = -1
     private var mode                    : String                    = STATUS.OK.rawValue
     private var mapZoom                 : Int                       = -1
     private var animateDistance         : Double                    = -1
@@ -80,15 +81,64 @@ class RouteDrawer {
     private var animationDelegate       : AnimationDelegate?        = nil
     
     init(){
-        setCameraUpdateSpeed(self.animationSpeed)
+        setCameraUpdateSpeed(SPEED.NORMAL)
     }
     
     func request(beginLocation : CLLocationCoordinate2D, endLocation : CLLocationCoordinate2D, mode : MODE) -> String {
-        return ""
+        let urlStr : String = String(format:"http://maps.googleapis.com/maps/api/directions/json?origin=%.6f,%.6f&destination=%.6f,%.6f&sensor=false&units=metric&mode=%@", beginLocation.latitude, beginLocation.longitude, endLocation.latitude, endLocation.longitude, mode.rawValue)
+        
+        let url : NSURL = NSURL(string: urlStr)!
+        
+        if self.enableLogging {
+            println(urlStr)
+        }
+        
+        let urlSession = NSURLSession.sharedSession()
+        
+        let directionTask = urlSession.dataTaskWithURL(url) {
+            (data, response, error) -> Void in
+            if error != nil {
+                println(error.localizedDescription)
+            }
+            else {
+                let jsonData : JSON = JSON(data: data)
+                println(jsonData.description)
+                if self.directionDelegate != nil {
+                    let statusOfResponse = jsonData["status"].stringValue
+                    self.directionDelegate?.Response(self.getStatus(statusOfResponse), response: jsonData, routeDrawer: self)
+                }
+            }
+        }
+        directionTask.resume()
+        return urlStr
     }
-    func setLogging(state : Bool) -> Void {}
     
-    func getStatus(json : AnyObject?) -> STATUS { return STATUS.OK }
+    func setLogging(state : Bool) -> Void {
+        self.enableLogging = state
+    }
+    
+    func getStatus(status : String) -> STATUS {
+        
+        switch status.uppercaseString {
+        case "OK" :
+            return STATUS.OK
+        case "NOT_FOUND" :
+            return STATUS.NOT_FOUND
+        case "MAX_WAYPOINTS_EXCEEDED" :
+            return STATUS.MAX_WAYPOINTS_EXCEEDED
+        case "INVALID_REQUEST" :
+            return STATUS.INVALID_REQUEST
+        case "OVER_QUERY_LIMIT" :
+            return STATUS.OVER_QUERY_LIMIT
+        case "REQUEST_DENIED" :
+            return STATUS.REQUEST_DENIED
+        case "UNKNOWN_ERROR" :
+            return STATUS.UNKNOWN_ERROR
+        default :
+            return STATUS.OK
+        }
+    
+    }
     
     /*
     "duration" : {
@@ -96,8 +146,26 @@ class RouteDrawer {
         "value" : 65
     }
     */
-    func getDurations(json : AnyObject?) -> Dictionary<String,Int>?{
-        return nil
+    func getDurations(json : JSON) -> [(String, Int)]?{
+        
+        var durations : [(String, Int)]? = nil
+        if let routes = json["routes"].array {
+            for route in routes {
+                durations = [(String, Int)]()
+                if let legs = route["legs"].array {
+                    for leg : JSON in legs {
+                        if let steps = leg["steps"].array {
+                            for step in steps {
+                                let tuple = (step["duration"]["text"].stringValue, step["duration"]["value"].intValue)
+                                durations?.append(tuple)
+                            }
+                        }
+                
+                    }
+                }
+            }
+        }
+        return durations
     }
     /*
     "duration" : {
@@ -105,23 +173,23 @@ class RouteDrawer {
     "value" : 19087
     }
     */
-    func getTotalDuration(json : AnyObject?) -> (String, Int){
+    func getTotalDuration(json : JSON) -> (String, Int){
         return ("",1)
     }
     
-    func getStartEndAddresses(json : AnyObject?) -> (String, String){
+    func getStartEndAddresses(json : JSON) -> (String, String){
         return ("","")
     }
-    func getCopyRights(json : AnyObject?) -> String {
+    func getCopyRights(json : JSON) -> String {
         return "";
     }
-    func getDirections(json : AnyObject?) -> [CLLocationCoordinate2D] {
+    func getDirections(json : JSON) -> [CLLocationCoordinate2D] {
         return []
     }
-    func getSection(json : AnyObject?) -> [CLLocationCoordinate2D] {
+    func getSection(json : JSON) -> [CLLocationCoordinate2D] {
         return []
     }
-    func getPolyline(json : AnyObject?) -> GMSPolyline? {
+    func getPolyline(json : JSON) -> GMSPolyline? {
         return nil
     }
     private func decodePoly(data : String) -> [CLLocationCoordinate2D] {
@@ -185,7 +253,7 @@ class RouteDrawer {
             self.animateCamera   = 0.004
             self.mapZoom         = 15
         case .FASTEST:
-            self.animateDistance = 0.0005
+            self.animateDistance = 0.001
             self.animationSpeed  = 20
             self.animateCamera   = 0.004
             self.mapZoom         = 13
