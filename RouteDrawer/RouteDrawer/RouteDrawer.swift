@@ -150,8 +150,8 @@ class RouteDrawer {
         
         var durations : [(String, Int)]? = nil
         if let routes = json["routes"].array {
+            durations = [(String, Int)]()
             for route in routes {
-                durations = [(String, Int)]()
                 if let legs = route["legs"].array {
                     for leg : JSON in legs {
                         if let steps = leg["steps"].array {
@@ -173,17 +173,54 @@ class RouteDrawer {
     "value" : 19087
     }
     */
-    func getTotalDuration(json : JSON) -> (String, Int){
-        return ("",1)
+    func getTotalDurations(json : JSON) -> [(String, Int)]?{
+        var durations : [(String, Int)]? = nil
+        if let routes = json["routes"].array {
+            durations = [(String, Int)]()
+            for route in routes {
+                if let legs = route["legs"].array {
+                    for leg : JSON in legs {
+                        let tuple = (leg["duration"]["text"].stringValue, leg["duration"]["value"].intValue)
+                        durations?.append(tuple)
+                    }
+                }
+            }
+        }
+        return durations
     }
     
-    func getStartEndAddresses(json : JSON) -> (String, String){
-        return ("","")
+    func getStartEndAddresses(json : JSON) -> [(String, String)]?{
+        var adresses : [(String, String)]? = nil
+        if let routes = json["routes"].array {
+            adresses = [(String, String)]()
+            for route in routes {
+                if let legs = route["legs"].array {
+                    for leg : JSON in legs {
+                        let tuple = (leg["start_address"].stringValue, leg["end_address"].stringValue)
+                        adresses?.append(tuple)
+                    }
+                }
+            }
+        }
+        return adresses
     }
-    func getCopyRights(json : JSON) -> String {
-        return "";
+    func getCopyRights(json : JSON) -> [String]? {
+        var copyRights : [String]? = nil
+        if let routes = json["routes"].array {
+            copyRights = [String]()
+            for route in routes {
+                if let legs = route["legs"].array {
+                    for leg : JSON in legs {
+                        let tuple = leg["copyrights"].stringValue
+                        copyRights?.append(tuple)
+                    }
+                }
+            }
+        }
+        return copyRights
     }
     func getDirections(json : JSON) -> [CLLocationCoordinate2D] {
+        
         return []
     }
     func getSection(json : JSON) -> [CLLocationCoordinate2D] {
