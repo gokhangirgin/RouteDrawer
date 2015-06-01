@@ -8,6 +8,13 @@
 import Foundation
 import GoogleMaps
 import SwiftyJSON
+
+extension String {
+    subscript (i: Int) -> Character {
+        return self[advance(self.startIndex, i)]
+    }
+}
+
 protocol DirectionDelegate {
     func Response(status : RouteDrawer.STATUS, response : JSON, routeDrawer : RouteDrawer) -> Void
 }
@@ -226,11 +233,40 @@ class RouteDrawer {
     func getSection(json : JSON) -> [CLLocationCoordinate2D] {
         return []
     }
-    func getPolyline(json : JSON) -> GMSPolyline? {
-        return nil
-    }
     private func decodePoly(data : String) -> [CLLocationCoordinate2D] {
-        return []
+        var points : [CLLocationCoordinate2D] = [CLLocationCoordinate2D]()
+        var index : Int = 0
+        var length : Int = count(data)
+        var lat = 0, lng = 0
+        while index < length {
+            var b = 0
+            var shift = 0
+            var result = 0
+            
+            do {
+                b = String(data[index++]).toInt()! - 63
+                result |= (b & 0x1f) << shift
+                shift += 5
+                
+            }while(b >= 0x20)
+            
+            var dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1))
+            lat += dlat;
+            shift = 0;
+            result = 0;
+            do {
+                b = String(data[index++]).toInt()! - 63
+                result |= (b & 0x1f) << shift
+                shift += 5
+            } while (b >= 0x20);
+            var dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1))
+            lng += dlng
+            
+            var position : CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: Double(lat) / 1E5, longitude: Double(lng) / 1E5)
+            points.append(position)
+            
+        }
+        return points
     }
     func setDirectionDelegate(directionDelegate : DirectionDelegate) -> Void {
         self.directionDelegate = directionDelegate
