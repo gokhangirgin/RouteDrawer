@@ -10,8 +10,8 @@ import GoogleMaps
 import SwiftyJSON
 
 extension String {
-    subscript (i: Int) -> Character {
-        return self[advance(self.startIndex, i)]
+    func charAt (i: Int) -> String {
+        return String(self[advance(self.startIndex, i)])
     }
 }
 
@@ -226,9 +226,43 @@ class RouteDrawer {
         }
         return copyRights
     }
-    func getDirections(json : JSON) -> [CLLocationCoordinate2D] {
-        
-        return []
+    func getDirections(json : JSON) -> [CLLocationCoordinate2D]? {
+        var points : [CLLocationCoordinate2D]? = nil
+        if let routes = json["routes"].array {
+            points = [CLLocationCoordinate2D]()
+            for route in routes {
+                if let legs = route["legs"].array {
+                    for leg : JSON in legs {
+                        let start_location = CLLocationCoordinate2D(latitude: leg["start_location"]["lat"].double!,
+                            longitude: leg["start_location"]["lng"].double!)
+                        points?.append(start_location)
+                        
+                        if let steps = leg["steps"].array {
+                            
+                            for step : JSON in steps {
+                                let step_start_location = CLLocationCoordinate2D(latitude: step["start_location"]["lat"].double!,
+                                    longitude: step["start_location"]["lng"].double!)
+                                
+                                points?.append(step_start_location)
+                                
+                                points?.extend(self.decodePoly(step["polyline"]["points"].string!))
+                                
+                                let step_end_location = CLLocationCoordinate2D(latitude: step["end_location"]["lat"].double!,
+                                    longitude: step["end_location"]["lng"].double!)
+                                
+                                points?.append(step_end_location)
+                            
+                            }
+                        
+                        }
+                        
+                        let end_location = CLLocationCoordinate2D(latitude: leg["end_location"]["lat"].double!,
+                            longitude: leg["end_location"]["lng"].double!)
+                        points?.append(end_location)                    }
+                }
+            }
+        }
+        return points
     }
     func getSection(json : JSON) -> [CLLocationCoordinate2D] {
         return []
@@ -239,12 +273,16 @@ class RouteDrawer {
         var length : Int = count(data)
         var lat = 0, lng = 0
         while index < length {
-            var b = 0
+            var b  = 0
             var shift = 0
             var result = 0
             
             do {
-                b = String(data[index++]).toInt()! - 63
+                //unicode value :( refactor
+                for char in data.charAt(index++).unicodeScalars {
+                    b = Int(char.value)
+                }
+                b -= 63
                 result |= (b & 0x1f) << shift
                 shift += 5
                 
@@ -255,7 +293,11 @@ class RouteDrawer {
             shift = 0;
             result = 0;
             do {
-                b = String(data[index++]).toInt()! - 63
+                //unicode value :( refactor
+                for char in data.charAt(index++).unicodeScalars {
+                    b = Int(char.value)
+                }
+                b -= 63
                 result |= (b & 0x1f) << shift
                 shift += 5
             } while (b >= 0x20);
