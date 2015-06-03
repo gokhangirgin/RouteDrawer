@@ -8,7 +8,7 @@
 import Foundation
 import GoogleMaps
 import SwiftyJSON
-
+import GLKit
 extension String {
     func charAt (i: Int) -> String {
         return String(self[advance(self.startIndex, i)])
@@ -76,7 +76,7 @@ class RouteDrawer {
     private var mapZoom                 : Int                       = -1
     private var animateDistance         : Double                    = -1
     private var animateCamera           : Double                    = -1
-    private var sumOfAnimateDistance    : Int                       = -1
+    private var sumOfAnimateDistance    : Double                    = 0
     private var cameraFlag              : Bool                      = false
     private var drawMaker               : Bool                      = false
     private var drawLine                : Bool                      = false
@@ -316,7 +316,7 @@ class RouteDrawer {
     func setAnimationDelegate(animationDelegate : AnimationDelegate) -> Void {
         self.animationDelegate = animationDelegate
     }
-    func animateDirections(
+    func draw(
         gm          : GMSMapView,
         directions  : [CLLocationCoordinate2D],
         speed       : SPEED,
@@ -339,10 +339,53 @@ class RouteDrawer {
         return animateLine
     }
     func getNewPosition(begin : CLLocationCoordinate2D, end : CLLocationCoordinate2D) -> CLLocationCoordinate2D {
-        return CLLocationCoordinate2D()
+        let lat : Double = abs(begin.latitude - end.latitude)
+        let lng : Double = abs(begin.longitude - end.longitude)
+        
+        let dist = sqrt(pow(lat, 2) + pow(lng, 2))
+        
+        if(dist >= animateDistance) {
+            var angle : Float = -1
+            if(begin.latitude <= end.latitude && begin.longitude <= end.longitude) {
+                angle = GLKMathRadiansToDegrees(Float(atan(lng / lat)))
+            }
+            else if(begin.latitude > end.latitude && begin.longitude <= end.longitude){
+                 angle = (90 - GLKMathRadiansToDegrees(Float(atan(lng / lat)))) + 90;
+            }
+            else if(begin.latitude > end.latitude && begin.longitude > end.longitude){
+                angle = GLKMathRadiansToDegrees(Float(atan(lng / lat))) + 180;
+            }
+            else if(begin.latitude <= end.latitude && begin.longitude > end.longitude)
+            {
+                angle = (90 - GLKMathRadiansToDegrees(Float(atan(lng / lat)))) + 270;
+            }
+            let x : Double = Double(cos(GLKMathDegreesToRadians(angle))) * self.animateDistance
+            let y : Double = Double(sin(GLKMathDegreesToRadians(angle))) * self.animateDistance
+            self.sumOfAnimateDistance += self.animateDistance
+            let new_lat : Double = begin.latitude + x
+            let new_lng : Double = begin.longitude + y
+            return CLLocationCoordinate2D(latitude: new_lat, longitude: new_lng)
+        }
+        else {
+            return end
+        }
     }
-    func getBearing() -> Float {
-        return 0
+    func getBearing(begin : CLLocationCoordinate2D, end : CLLocationCoordinate2D) -> Float {
+        let lat : Double = abs(begin.latitude - end.latitude)
+        let lng : Double = abs(begin.longitude - end.longitude)
+        if(begin.latitude < end.latitude && begin.longitude < end.longitude){
+            return Float((GLKMathRadiansToDegrees(Float(atan(lng / lat)))))
+        }
+        else if(begin.latitude >= end.latitude && begin.longitude < end.longitude){
+            return Float(((90 - GLKMathRadiansToDegrees(Float(atan(lng / lat)))) + 90))
+        }
+        else if(begin.latitude >= end.latitude && begin.longitude >= end.longitude){
+            return  Float((GLKMathRadiansToDegrees(Float(atan(lng / lat))) + 180))
+        }
+        else if(begin.latitude < end.latitude && begin.longitude >= end.longitude){
+            return Float(((90 - GLKMathRadiansToDegrees(Float(atan(lng / lat)))) + 270))
+        }
+        return -1;
     }
     func setCameraUpdateSpeed(speed : SPEED) -> Void {
     
