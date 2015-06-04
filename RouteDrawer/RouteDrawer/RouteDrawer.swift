@@ -82,7 +82,7 @@ class RouteDrawer {
     private var drawLine                : Bool                      = false
     private var flatMarker              : Bool                      = false
     private var isCameraTilt            : Bool                      = false
-    private var isCameraZoomed          : Bool                      = false
+    private var isCameraZoom            : Bool                      = false
     private var isAnimated              : Bool                      = false
     private var directionDelegate       : DirectionDelegate?        = nil
     private var animationDelegate       : AnimationDelegate?        = nil
@@ -339,6 +339,8 @@ class RouteDrawer {
                 self.drawLine = drawLine
                 self.step = 0
                 self.cameraFlag = true
+                self.isCameraZoom = isCameraZoom
+                self.isCameraTilt = isCameraTilt
                 self.googleMap = gm
                 
                 self.setCameraUpdateSpeed(speed)
@@ -404,6 +406,68 @@ class RouteDrawer {
                 }
             }
     
+    }
+    private func animateCoordinates(){
+        let delayTime = dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_MSEC * UInt64(self.animationSpeed)))
+        dispatch_after(delayTime, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0)) { () -> Void in
+            self.animateMarkerPosition = self.getNewPosition(self.animateMarkerPosition!, end: self.endPosition!)
+            
+            if self.drawMarker {
+                self.animateMarker?.position = self.animateMarkerPosition!
+            }
+            
+            if self.drawLine {
+                var points : GMSMutablePath = self.animateLine?.path as! GMSMutablePath
+                points.addCoordinate(self.animateMarkerPosition!)
+                self.animateLine?.path = points
+            }
+            
+            if self.animateMarkerPosition?.latitude == self.endPosition?.latitude &&
+                self.animateMarkerPosition?.longitude == self.endPosition?.longitude {
+                    
+                    if self.step == self.coordinateList.count - 2 {
+                        //end of animation set free
+                        self.isAnimated = false
+                        self.sumOfAnimateDistance = 0
+                        if self.animationDelegate != nil {
+                            self.animationDelegate?.finish()
+                        }
+                    }else {
+                        self.step++
+                        self.startPosition = self.coordinateList[self.step + 1]
+                        self.endPosition = self.coordinateList[self.step + 1]
+                        
+                        self.animateMarkerPosition = self.startPosition
+                        
+                        if self.flatMarker && self.step + 3 < self.coordinateList.count - 1 {
+                            let rotation : Float = self.getBearing(self.animateMarkerPosition!, end: self.coordinateList[self.step + 3]) + 180;
+                            self.animateMarker?.rotation = CLLocationDegrees(rotation)
+                        }
+                        
+                        if self.animationDelegate != nil {
+                            self.animationDelegate?.progress(self.step, total: self.coordinateList.count)
+                        }
+                    }
+            }
+            
+            if self.cameraFlag && (self.sumOfAnimateDistance > self.animateCamera || !self.isAnimatedInProgress()) {
+                self.sumOfAnimateDistance = 0
+                
+                let bearing : Float = self.getBearing(self.startPosition!, end: self.endPosition!)
+                let cameraPosition : GMSCameraPosition = GMSCameraPosition.cameraWithTarget(self.animateMarkerPosition!,
+                    zoom: (self.isCameraZoom ? Float(self.mapZoom) : self.googleMap?.camera.zoom)!,
+                    bearing: CLLocationDirection(bearing), viewingAngle: (self.isCameraTilt ? 90.0 : self.googleMap?.camera.viewingAngle)!)
+                
+                self.googleMap?.animateToCameraPosition(cameraPosition)
+                
+            }
+            
+            if self.isAnimatedInProgress() {
+                self.animateCoordinates()
+            }
+            
+        }
+        
     }
     func cancelAnimated() -> Void {
         self.isAnimated = false
