@@ -52,7 +52,7 @@ class RouteDrawer {
     /*
         Animation speed
     */
-    enum SPEED : Double {
+    enum SPEED : Int {
         case
         FASTEST = 1,
         FAST    = 2,
@@ -66,19 +66,19 @@ class RouteDrawer {
     private var animateMarkerPosition   : CLLocationCoordinate2D?   = nil
     private var startPosition           : CLLocationCoordinate2D?   = nil
     private var endPosition             : CLLocationCoordinate2D?   = nil
-    private var coordinateList          : [CLLocationCoordinate2D]? = nil
+    private var coordinateList          : [CLLocationCoordinate2D]  = [CLLocationCoordinate2D]()
     private var animateMarker           : GMSMarker?                = nil
     private var animateLine             : GMSPolyline?              = nil
     private var googleMap               : GMSMapView?               = nil
     private var step                    : Int                       = -1
     private var animationSpeed          : Int                       = -1
     private var mode                    : String                    = STATUS.OK.rawValue
-    private var mapZoom                 : Int                       = -1
+    private var mapZoom                 : Double                    = -1
     private var animateDistance         : Double                    = -1
     private var animateCamera           : Double                    = -1
     private var sumOfAnimateDistance    : Double                    = 0
     private var cameraFlag              : Bool                      = false
-    private var drawMaker               : Bool                      = false
+    private var drawMarker              : Bool                      = false
     private var drawLine                : Bool                      = false
     private var flatMarker              : Bool                      = false
     private var isCameraTilt            : Bool                      = false
@@ -88,7 +88,6 @@ class RouteDrawer {
     private var animationDelegate       : AnimationDelegate?        = nil
     
     init(){
-        setCameraUpdateSpeed(SPEED.NORMAL)
     }
     
     func request(beginLocation : CLLocationCoordinate2D, endLocation : CLLocationCoordinate2D, mode : MODE) -> String {
@@ -317,15 +316,95 @@ class RouteDrawer {
         self.animationDelegate = animationDelegate
     }
     func draw(
-        gm          : GMSMapView,
-        directions  : [CLLocationCoordinate2D],
-        speed       : SPEED,
-        cameraLock  : Bool,
-        isCameraTilt: Bool,
-        isCameraZoom: Bool,
-        drawMarker  : Bool,
-        drawLine    : Bool,
-        polyOpt     : UIColor) -> Void {}
+        gm              : GMSMapView,
+        directions      : [CLLocationCoordinate2D],
+        speed           : SPEED,
+        cameraLock      : Bool,
+        isCameraTilt    : Bool,
+        isCameraZoom    : Bool,
+        drawMarker      : Bool,
+        markerOptions   : GMSMarker?,
+        flatMarker      : Bool,
+        drawLine        : Bool,
+        polyOpt         : UIColor?) -> Void {
+    
+            if directions.count > 0 {
+                self.isAnimated = true
+                self.coordinateList = directions
+                self.animationSpeed = speed.rawValue
+                self.drawMarker = drawMarker
+                self.drawLine = drawLine
+                self.flatMarker = flatMarker
+                self.animateMarker = markerOptions
+                self.drawLine = drawLine
+                self.step = 0
+                self.cameraFlag = true
+                self.googleMap = gm
+                
+                self.setCameraUpdateSpeed(speed)
+                
+                self.startPosition = coordinateList[self.step]
+                self.endPosition   = coordinateList[(self.step + 1)]
+                
+                self.animateMarkerPosition = startPosition
+                
+                if self.animationDelegate != nil {
+                    self.animationDelegate?.progress(step, total: self.coordinateList.count)
+                }
+                if(cameraFlag){
+                    //ameraWithTarget(target: CLLocationCoordinate2D, zoom: Float, bearing: CLLocationDirection, viewingAngle: Double)
+                    let bearing : Float = getBearing(startPosition!, end: endPosition!)
+                    let cameraPosition : GMSCameraPosition = GMSCameraPosition.cameraWithTarget(self.animateMarkerPosition!,
+                        zoom: (isCameraZoom ? Float(self.mapZoom) : self.googleMap?.camera.zoom)!,
+                        bearing: CLLocationDirection(bearing), viewingAngle: (isCameraTilt ? 90.0 : self.googleMap?.camera.viewingAngle)!)
+                    
+                    self.googleMap?.animateToCameraPosition(cameraPosition)
+                    
+                    if self.drawMarker {
+                        if markerOptions != nil {
+                            self.animateMarker = markerOptions
+                            self.animateMarker?.position = self.startPosition!
+                        }
+                        else {
+                            self.animateMarker = GMSMarker()
+                            self.animateMarker?.position = self.startPosition!
+                        }
+                        self.animateMarker?.map = self.googleMap
+                    }
+                    
+                    if self.drawLine {
+                        if polyOpt != nil {
+                            self.animateLine = GMSPolyline()
+                            var path : GMSMutablePath = GMSMutablePath()
+                            path.addCoordinate(startPosition!)
+                            path.addCoordinate(endPosition!)
+                            self.animateLine?.path = path
+                            self.animateLine?.strokeColor = polyOpt!
+                            self.animateLine?.strokeWidth = 5
+                            
+                            
+                        }
+                        else {
+                            self.animateLine = GMSPolyline()
+                            var path : GMSMutablePath = GMSMutablePath()
+                            path.addCoordinate(startPosition!)
+                            path.addCoordinate(endPosition!)
+                            self.animateLine?.path = path
+                            self.animateLine?.strokeColor = UIColor.blackColor()
+                            self.animateLine?.strokeWidth = 5
+                        }
+                        self.animateLine?.map = self.googleMap
+                    }
+                    //start with async task from here
+                    
+                    if self.animationDelegate != nil {
+                        self.animationDelegate?.start()
+                    }
+                    
+                }
+            }
+    
+    }
     func cancelAnimated() -> Void {
         self.isAnimated = false
     }
