@@ -108,7 +108,6 @@ class RouteDrawer {
             }
             else {
                 let jsonData : JSON = JSON(data: data)
-                println(jsonData.description)
                 if self.directionDelegate != nil {
                     let statusOfResponse = jsonData["status"].stringValue
                     self.directionDelegate?.Response(self.getStatus(statusOfResponse), response: jsonData, routeDrawer: self)
@@ -163,6 +162,10 @@ class RouteDrawer {
                         if let steps = leg["steps"].array {
                             for step in steps {
                                 let tuple = (step["duration"]["text"].stringValue, step["duration"]["value"].intValue)
+                                if self.enableLogging {
+                                    println("Duration : " + step["duration"]["text"].stringValue + ", asInt : " + String(step["duration"]["value"].intValue))
+                                }
+
                                 durations?.append(tuple)
                             }
                         }
@@ -187,6 +190,9 @@ class RouteDrawer {
                 if let legs = route["legs"].array {
                     for leg : JSON in legs {
                         let tuple = (leg["duration"]["text"].stringValue, leg["duration"]["value"].intValue)
+                        if self.enableLogging {
+                            println("Duration : " + leg["duration"]["text"].stringValue + ", asInt : " + String(leg["duration"]["value"].intValue))
+                        }
                         durations?.append(tuple)
                     }
                 }
@@ -203,6 +209,9 @@ class RouteDrawer {
                 if let legs = route["legs"].array {
                     for leg : JSON in legs {
                         let tuple = (leg["start_address"].stringValue, leg["end_address"].stringValue)
+                        if self.enableLogging {
+                            println("Start Address : " + leg["start_address"].stringValue + ", End Address : " + leg["end_address"].stringValue)
+                        }
                         adresses?.append(tuple)
                     }
                 }
@@ -218,6 +227,9 @@ class RouteDrawer {
                 if let legs = route["legs"].array {
                     for leg : JSON in legs {
                         let tuple = leg["copyrights"].stringValue
+                        if self.enableLogging {
+                            println("Copyrights : " + leg["copyrights"].stringValue)
+                        }
                         copyRights?.append(tuple)
                     }
                 }
@@ -234,6 +246,13 @@ class RouteDrawer {
                     for leg : JSON in legs {
                         let start_location = CLLocationCoordinate2D(latitude: leg["start_location"]["lat"].double!,
                             longitude: leg["start_location"]["lng"].double!)
+                        
+                        if self.enableLogging {
+                            let str = String(format: "Start Loc  lat: %.6f, lng : %.6f", start_location.latitude, start_location.longitude)
+                            println(str)
+                            
+                        }
+                        
                         points?.append(start_location)
                         
                         if let steps = leg["steps"].array {
@@ -242,13 +261,23 @@ class RouteDrawer {
                                 let step_start_location = CLLocationCoordinate2D(latitude: step["start_location"]["lat"].double!,
                                     longitude: step["start_location"]["lng"].double!)
                                 
+                                if self.enableLogging {
+                                    let str = String(format: "Step Start Loc  lat: %.6f, lng : %.6f", step_start_location.latitude, step_start_location.longitude)
+                                    println(str)
+                                    
+                                }
+                                
                                 points?.append(step_start_location)
                                 
                                 points?.extend(self.decodePoly(step["polyline"]["points"].string!))
                                 
                                 let step_end_location = CLLocationCoordinate2D(latitude: step["end_location"]["lat"].double!,
                                     longitude: step["end_location"]["lng"].double!)
-                                
+                                if self.enableLogging {
+                                    let str = String(format: "Step End Loc  lat: %.6f, lng : %.6f", step_end_location.latitude, step_end_location.longitude)
+                                    println(str)
+                                    
+                                }
                                 points?.append(step_end_location)
                             
                             }
@@ -257,7 +286,13 @@ class RouteDrawer {
                         
                         let end_location = CLLocationCoordinate2D(latitude: leg["end_location"]["lat"].double!,
                             longitude: leg["end_location"]["lng"].double!)
-                        points?.append(end_location)                    }
+                        if self.enableLogging {
+                            let str = String(format: "End Loc  lat: %.6f, lng : %.6f", end_location.latitude, end_location.longitude)
+                            println(str)
+                            
+                        }
+                        points?.append(end_location)
+                    }
                 }
             }
         }
@@ -304,6 +339,11 @@ class RouteDrawer {
             lng += dlng
             
             var position : CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: Double(lat) / 1E5, longitude: Double(lng) / 1E5)
+            if self.enableLogging {
+                let str = String(format: "Decoded Poly lat: %.6f, lng : %.6f", position.latitude, position.longitude)
+                println(str)
+                
+            }
             points.append(position)
             
         }
@@ -398,7 +438,7 @@ class RouteDrawer {
                         self.animateLine?.map = self.googleMap
                     }
                     //start with async task from here
-                    
+                    animateCoordinates()
                     if self.animationDelegate != nil {
                         self.animationDelegate?.start()
                     }
