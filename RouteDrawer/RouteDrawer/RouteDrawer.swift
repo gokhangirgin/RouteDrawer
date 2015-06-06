@@ -434,7 +434,7 @@ class RouteDrawer {
                         }
                     }else {
                         self.step++
-                        self.startPosition = self.coordinateList[self.step + 1]
+                        self.startPosition = self.coordinateList[self.step]
                         self.endPosition = self.coordinateList[self.step + 1]
                         
                         self.animateMarkerPosition = self.startPosition
